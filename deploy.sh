@@ -1,6 +1,6 @@
 #!/bin/bash
 
-JAR_NAME="spring0.jar"
+JAR_NAME="sprint1.jar"
 SRC_DIR="src"
 BUILD_DIR="build"
 LIB_DIR="lib"
