@@ -6,16 +6,19 @@ Spring0/
 ├── lib/
 |   └── servlet-api.jar
 ├── src/
-│   ├── mg/
-│   │   ├── framework/
-│   │   │   └──  FrontControllerServlet.java
-|   |   |
-│   │   └── annotation/
-│   │       ├──  Controller.java
-|   |       └── RequestMapping.java
-|   |
-|   └── utils/
-|       └──  ClassScanner.java
+│   └── mg/
+│       ├── framework/
+│       │   └──  FrontControllerServlet.java
+|       |
+│       ├── annotation/
+│       |   ├──  Controller.java
+|       |   └── RequestMapping.java
+|       | 
+│       ├── dto/
+|       |   └── URLMapping.java
+|       |
+|       └── utils/
+|           └──  ClassScanner.java
 |
 ├── deploy.sh
 ├── README.md

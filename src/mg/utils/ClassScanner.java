@@ -1,6 +1,7 @@
 package mg.utils;
 
 import mg.annotation.Controller;
+import mg.dto.URLMapping;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -130,7 +131,7 @@ public class ClassScanner {
     }
 
 
-
+    // affichage dans la console
     public static void printClasses(
             List<Class<?>> classes) {
 
@@ -163,5 +164,37 @@ public class ClassScanner {
         }
 
         return map;
+    }
+
+    public static Map<String, URLMapping> createUrlMappings(
+        List<Class<?>> classes) {
+
+        Map<String, URLMapping> urlMap = new HashMap<>();
+
+        for (Class<?> c : classes) {
+
+            // On garde uniquement les controllers
+            if (!c.isAnnotationPresent(Controller.class)) {
+                continue;
+            }
+
+            // On inspecte toutes les méthodes
+            for (Method m : c.getDeclaredMethods()) {
+
+                if (m.isAnnotationPresent(RequestMapping.class)) {
+
+                    RequestMapping rm = m.getAnnotation(RequestMapping.class);
+
+                    URLMapping mapping = new URLMapping();
+
+                    mapping.setController(c);
+                    mapping.setMethod(m);
+
+                    urlMap.put(rm.value(), mapping);
+                }
+            }
+        }
+
+        return urlMap;
     }
 }
