@@ -15,7 +15,8 @@ Spring0/
 |       |   └── RequestMapping.java
 |       | 
 │       ├── dto/
-|       |   └── URLMapping.java
+│       |   ├── URLMapping.java
+|       |   └── URLMethod.java
 |       |
 |       └── utils/
 |           └──  ClassScanner.java
