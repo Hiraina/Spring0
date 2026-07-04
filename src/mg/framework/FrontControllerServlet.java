@@ -12,10 +12,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import mg.utils.ClassScanner;
 import mg.annotation.Controller;
 import mg.dto.URLMapping;
+import mg.dto.URLMethod;
 
 public class FrontControllerServlet extends HttpServlet {
 
-    private Map<String, URLMapping> urlMappings;
+    private Map<URLMethod, URLMapping> urlMappings;
 
     @Override
     public void init() {
@@ -41,11 +42,9 @@ public class FrontControllerServlet extends HttpServlet {
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-            throws IOException {
+        throws IOException {
 
         response.setContentType("text/html; charset=UTF-8");
-        response.setCharacterEncoding("UTF-8");
-
         PrintWriter out = response.getWriter();
 
         String url = request.getRequestURI();
@@ -53,9 +52,14 @@ public class FrontControllerServlet extends HttpServlet {
 
         url = url.replace(contextPath, "");
 
+        // 🧠 ON AJOUTE LE VERBE HTTP
+        String httpMethod = request.getMethod();
+
         try {
 
-            URLMapping mapping = urlMappings.get(url);
+            URLMethod key = new URLMethod(url, httpMethod);
+
+            URLMapping mapping = urlMappings.get(key);
 
             if (mapping != null) {
 
@@ -64,13 +68,16 @@ public class FrontControllerServlet extends HttpServlet {
                                 .getDeclaredConstructor()
                                 .newInstance();
 
-                mapping.getMethod()
-                        .invoke(instance, request, response);
+                // Object result = mapping.getMethod().invoke(instance, request, response);
+
+                // out.println(result);
+
+                mapping.getMethod().invoke(instance, request, response);
 
             } else {
 
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                out.println("404 Not Found: " + url);
+                out.println("404 Not Found: " + url + " (" + httpMethod + ")");
             }
 
         } catch (Exception e) {
