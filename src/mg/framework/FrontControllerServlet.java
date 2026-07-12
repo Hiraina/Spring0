@@ -5,14 +5,16 @@ import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
 
+import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import mg.utils.ClassScanner;
-import mg.annotation.Controller;
+import mg.dto.ModelAndView;
 import mg.dto.URLMapping;
 import mg.dto.URLMethod;
+import mg.utils.ClassScanner;
 
 public class FrontControllerServlet extends HttpServlet {
 
@@ -20,7 +22,7 @@ public class FrontControllerServlet extends HttpServlet {
 
     @Override
     public void init() {
-        System.out.println("=== SPRING2 START ===");
+        System.out.println("=== SPRING5 START ===");
 
         List<Class<?>> classes = ClassScanner.loadClasses();
 
@@ -28,23 +30,27 @@ public class FrontControllerServlet extends HttpServlet {
     }
 
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response)
-            throws IOException {
+    protected void doGet(HttpServletRequest request,
+                         HttpServletResponse response)
+            throws IOException, ServletException {
 
         processRequest(request, response);
     }
 
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
-            throws IOException {
+    protected void doPost(HttpServletRequest request,
+                          HttpServletResponse response)
+            throws IOException, ServletException {
 
         processRequest(request, response);
     }
 
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)
-        throws IOException {
+    protected void processRequest(HttpServletRequest request,
+                                  HttpServletResponse response)
+            throws IOException, ServletException {
 
         response.setContentType("text/html; charset=UTF-8");
+
         PrintWriter out = response.getWriter();
 
         String url = request.getRequestURI();
@@ -52,7 +58,6 @@ public class FrontControllerServlet extends HttpServlet {
 
         url = url.replace(contextPath, "");
 
-        // 🧠 ON AJOUTE LE VERBE HTTP
         String httpMethod = request.getMethod();
 
         try {
@@ -63,21 +68,60 @@ public class FrontControllerServlet extends HttpServlet {
 
             if (mapping != null) {
 
-                Object instance =
-                        mapping.getController()
-                                .getDeclaredConstructor()
-                                .newInstance();
+                Object instance = mapping.getController()
+                        .getDeclaredConstructor()
+                        .newInstance();
 
-                // Object result = mapping.getMethod().invoke(instance, request, response);
+                Object result;
 
-                // out.println(result);
+                // Méthode avec HttpServletRequest et HttpServletResponse
+                if (mapping.getMethod().getParameterCount() == 2) {
 
-                mapping.getMethod().invoke(instance, request, response);
+                    result = mapping.getMethod().invoke(
+                            instance,
+                            request,
+                            response
+                    );
+
+                }
+                // Méthode sans paramètre
+                else {
+
+                    result = mapping.getMethod().invoke(instance);
+
+                }
+
+                // ===== Sprint 5 =====
+                // Si la méthode retourne un ModelAndView
+                if (result instanceof ModelAndView) {
+
+                    ModelAndView mv = (ModelAndView) result;
+
+                    for (Map.Entry<String, Object> entry : mv.getData().entrySet()) {
+                        request.setAttribute(entry.getKey(), entry.getValue());
+                    }
+
+                    RequestDispatcher dispatcher =
+                            request.getRequestDispatcher(mv.getView());
+
+                    dispatcher.forward(request, response);
+                    return;
+                }
+
+                // Si la méthode retourne une String
+                if (result instanceof String) {
+                    out.println(result);
+                }
 
             } else {
 
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                out.println("404 Not Found: " + url + " (" + httpMethod + ")");
+
+                out.println("404 Not Found : "
+                        + url
+                        + " ("
+                        + httpMethod
+                        + ")");
             }
 
         } catch (Exception e) {
