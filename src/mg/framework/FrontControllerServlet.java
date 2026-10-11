@@ -17,6 +17,7 @@ import mg.annotation.RestAPI;
 import mg.dto.ModelAndView;
 import mg.dto.URLMethod;
 import mg.utils.ClassScanner;
+import models.User;
 
 public class FrontControllerServlet extends HttpServlet {
 
@@ -24,13 +25,9 @@ public class FrontControllerServlet extends HttpServlet {
 
     @Override
     public void init() {
-
-        System.out.println("=== SPRING5 START ===");
+        System.out.println("=== SPRING7 BIS START ===");
         List<Class<?>> classes = ClassScanner.loadClasses();
-
-        // Afficher les classes détectées
         ClassScanner.printClasses(classes);
-
         urlMappings = ClassScanner.createUrlMappings(classes);
     }
 
@@ -58,69 +55,62 @@ public class FrontControllerServlet extends HttpServlet {
         try {
             URLMethod key = new URLMethod(url, httpMethod);
             Method method = urlMappings.get(key);
+
             if (method != null) {
                 Class<?> controllerClass = method.getDeclaringClass();
-
                 Object instance = controllerClass.getDeclaredConstructor().newInstance();
-                Object result;
-
-                // if (method.getParameterCount() == 2) {
-                //     result = method.invoke(instance, request, response);
-                // } else { 
-                //     result = method.invoke(instance);
-                // }
-
-                // Sprint 7
                 Parameter[] parameters = method.getParameters();
-
                 Object[] args = new Object[parameters.length];
 
-                for(int i=0; i<parameters.length; i++) {
+                for (int i = 0; i < parameters.length; i++) {
                     Parameter parameter = parameters[i];
-                    String parameterName = parameter.getName();
-                    String value = request.getParameter(parameterName);
+                    Class<?> parameterType = parameter.getType();
 
-                    args[i] = value;
+                    if (parameterType == String.class) {
+                        args[i] = request.getParameter(parameter.getName());
+                    } else if (parameterType == User.class) {
+                        User user = new User();
+                        user.setName(request.getParameter("name"));
+                        user.setPassword(request.getParameter("password"));
+                        user.setEmail(request.getParameter("email"));
+                        args[i] = user;
+                    } else {
+                        throw new IllegalArgumentException("Type non pris en charge : " + parameterType.getName());
+                    }
                 }
 
-                // Exécute la méthode avec les arguments
-                result = method.invoke(instance, args);
-
+                Object result = method.invoke(instance, args);
                 boolean isRestAPI = method.getDeclaringClass().isAnnotationPresent(RestAPI.class);
 
                 if (isRestAPI) {
                     response.setContentType("application/json; charset=UTF-8");
-
-                    out.println(
-                            "{"
+                    out.println("{"
                             + "\"url\":\"" + url + "\","
                             + "\"httpMethod\":\"" + httpMethod + "\","
                             + "\"method\":\"" + method.getName() + "\""
-                            + "}"
-                    );
+                            + "}");
                     return;
-                    
-                } if (result instanceof ModelAndView) {
-                    ModelAndView mv = (ModelAndView) result;
+                }
 
+                if (result instanceof ModelAndView) {
+                    ModelAndView mv = (ModelAndView) result;
                     for (Map.Entry<String, Object> entry : mv.getData().entrySet()) {
                         request.setAttribute(entry.getKey(), entry.getValue());
                     }
-
                     RequestDispatcher dispatcher = request.getRequestDispatcher(mv.getView());
                     dispatcher.forward(request, response);
                     return;
-                } if (result instanceof String) {
-                    out.println(result);
                 }
 
+                if (result instanceof String) {
+                    out.println(result);
+                }
             } else {
-                response.setStatus( HttpServletResponse.SC_NOT_FOUND);
-                out.println( "404 Not Found : " + url + " ("+ httpMethod + ")");
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                out.println("404 Not Found : " + url + " (" + httpMethod + ")");
             }
-
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new ServletException(e);
         }
     }
 }
