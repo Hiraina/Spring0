@@ -20,83 +20,51 @@ public class ClassScanner {
         List<Class<?>> classes = new ArrayList<>();
 
         try {
-
-            String path = Thread.currentThread()
-                    .getContextClassLoader()
-                    .getResource("")
-                    .getPath();
-
+            String path = Thread.currentThread() .getContextClassLoader().getResource("").getPath();
             File root = new File(path);
-
             scanFolder(root, "", classes);
-
         } catch (Exception e) {
-
             e.printStackTrace();
         }
 
         return classes;
     }
 
-    private static void scanFolder(
-            File folder,
-            String packageName,
-            List<Class<?>> classes) {
-
+    private static void scanFolder( File folder, String packageName, List<Class<?>> classes) {
         File[] files = folder.listFiles();
 
         if (files == null)
             return;
 
         for (File file : files) {
-
             if (file.isDirectory()) {
-
                 String newPackage = packageName;
-
                 if (!newPackage.isEmpty()) {
                     newPackage += ".";
                 }
 
                 newPackage += file.getName();
-
-                scanFolder(
-                        file,
-                        newPackage,
-                        classes
-                );
+                scanFolder( file, newPackage, classes);
 
             } else if (file.getName().endsWith(".class")) {
-
-                String className =
-                        packageName + "." +
-                        file.getName().replace(".class", "");
+                String className = packageName + "." + file.getName().replace(".class", "");
 
                 try {
-
-                    Class<?> c =
-                            Class.forName(className);
-
+                    Class<?> c = Class.forName(className);
                     classes.add(c);
-
                 } catch (Exception e) {
-
-                    System.out.println(
-                            "Cannot load: " + className
-                    );
+                    System.out.println("Cannot load: " + className);
                 }
             }
         }
     }
 
-    public static List<Class<?>> classesWithAnnotation(
-            List<Class<?>> classes,
+    public static List<Class<?>> classesWithAnnotation(List<Class<?>> classes,
             Class<? extends java.lang.annotation.Annotation> annotation) {
 
         List<Class<?>> result = new ArrayList<>();
 
         for (Class<?> c : classes) {
-
             if (c.isAnnotationPresent(annotation)) {
                 result.add(c);
             }
@@ -106,35 +74,20 @@ public class ClassScanner {
     }
 
     // Affichage dans la console
-    public static void printClasses(
-            List<Class<?>> classes) {
-
+    public static void printClasses(List<Class<?>> classes) {
         for (Class<?> c : classes) {
-
-            System.out.println(
-                    "Class: " + c.getName()
+            System.out.println( "Class: " + c.getName()
             );
         }
     }
 
-    public static Map<String, Method> getMappedMethods(
-            Class<?> clazz) {
-
+    public static Map<String, Method> getMappedMethods(Class<?> clazz) {
         Map<String, Method> map = new HashMap<>();
-
-        Method[] methods =
-                clazz.getDeclaredMethods();
+        Method[] methods = clazz.getDeclaredMethods();
 
         for (Method method : methods) {
-
-            if (method.isAnnotationPresent(
-                    RequestMapping.class)) {
-
-                RequestMapping rm =
-                        method.getAnnotation(
-                                RequestMapping.class
-                        );
-
+            if (method.isAnnotationPresent(RequestMapping.class)) {
+                RequestMapping rm = method.getAnnotation(RequestMapping.class);
                 map.put(rm.value(), method);
             }
         }
@@ -142,35 +95,21 @@ public class ClassScanner {
         return map;
     }
 
-    public static Map<URLMethod, Method> createUrlMappings(
-            List<Class<?>> classes) {
+    public static Map<URLMethod, Method> createUrlMappings(  List<Class<?>> classes) {
 
-        Map<URLMethod, Method> urlMap =
-                new HashMap<>();
+        Map<URLMethod, Method> urlMap = new HashMap<>();
 
         for (Class<?> c : classes) {
-
             if (!c.isAnnotationPresent(Controller.class)
                 && !c.isAnnotationPresent(RestAPI.class)) {
             continue;
-}
+            }
 
             for (Method m : c.getDeclaredMethods()) {
+                if (m.isAnnotationPresent( RequestMapping.class)) {
+                    RequestMapping rm = m.getAnnotation( RequestMapping.class);
 
-                if (m.isAnnotationPresent(
-                        RequestMapping.class)) {
-
-                    RequestMapping rm =
-                            m.getAnnotation(
-                                    RequestMapping.class
-                            );
-
-                    URLMethod key =
-                            new URLMethod(
-                                    rm.value(),
-                                    rm.method()
-                            );
-
+                    URLMethod key = new URLMethod(rm.value(), rm.method() );
                     urlMap.put(key, m);
                 }
             }

@@ -12,21 +12,17 @@ public class URLMapping {
         return controller;
     }
 
-
     public void setController(Class<?> controller) {
         this.controller = controller;
     }
-
 
     public Method getMethod() {
         return method;
     }
 
-
     public void setMethod(Method method) {
         this.method = method;
     }
-
 
     @Override
     public String toString() {

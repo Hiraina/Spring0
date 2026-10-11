@@ -29,8 +29,7 @@ public class URLMethod {
 
         URLMethod other = (URLMethod) obj;
 
-        return url.equals(other.url)
-                && method.equals(other.method);
+        return url.equals(other.url) && method.equals(other.method);
     }
 
     @Override
