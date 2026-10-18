@@ -1,6 +1,6 @@
 #!/bin/bash
 
-JAR_NAME="sprint7bis.jar"
+JAR_NAME="sprint8.jar"
 SRC_DIR="src"
 BUILD_DIR="build"
 LIB_DIR="lib"
