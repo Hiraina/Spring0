@@ -7,6 +7,8 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.Enumeration;
 
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
@@ -15,11 +17,10 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.Part;
+import jakarta.servlet.http.HttpSession;
 
 import mg.annotation.RestAPI;
-import mg.dto.MapFile;
-import mg.dto.ModelAndView;
-import mg.dto.URLMethod;
+import mg.dto.*;
 import mg.utils.ClassScanner;
 
 @MultipartConfig
@@ -29,7 +30,7 @@ public class FrontControllerServlet extends HttpServlet {
 
     @Override
     public void init() {
-        System.out.println("=== SPRING8 START ===");
+        System.out.println("=== SPRING9 START ===");
         List<Class<?>> classes = ClassScanner.loadClasses();
         ClassScanner.printClasses(classes);
         urlMappings = ClassScanner.createUrlMappings(classes);
@@ -99,6 +100,18 @@ public class FrontControllerServlet extends HttpServlet {
                         MapFile file = new MapFile(fileName, extension, bytesTable);
                         args[i] = file;
 
+                    } else if (parameterType == MySession.class) {
+                        HttpSession httpSession = request.getSession();
+                        Map<String, Object> data = new HashMap<>();
+                        Enumeration<String> names = httpSession.getAttributeNames();
+
+                        while (names.hasMoreElements()) {
+                            String name = names.nextElement();
+                            data.put(name, httpSession.getAttribute(name));
+                        }
+
+                        args[i] = new MySession(data);
+
                     } else {
                         throw new IllegalArgumentException(
                                 "Type non pris en charge : " + parameterType.getName());
@@ -106,6 +119,17 @@ public class FrontControllerServlet extends HttpServlet {
                 }
 
                 Object result = method.invoke(instance, args);
+
+                for (int i = 0; i < parameters.length; i++) {
+                    if (parameters[i].getType() == MySession.class) {
+                        MySession session = (MySession) args[i];
+                        HttpSession httpSession = request.getSession();
+
+                        for (Map.Entry<String, Object> entry : session.getData().entrySet()) {
+                            httpSession.setAttribute(entry.getKey(), entry.getValue());
+                        }
+                    }
+                }
 
                 boolean isRestAPI =
                         method.getDeclaringClass().isAnnotationPresent(RestAPI.class);
