@@ -20,6 +20,7 @@ import jakarta.servlet.http.Part;
 import jakarta.servlet.http.HttpSession;
 
 import mg.annotation.RestAPI;
+import mg.annotation.Role;
 import mg.dto.*;
 import mg.utils.ClassScanner;
 
@@ -30,144 +31,293 @@ public class FrontControllerServlet extends HttpServlet {
 
     @Override
     public void init() {
-        System.out.println("=== SPRING9 START ===");
+        System.out.println("=== SPRING10 BIS START ===");
+
         List<Class<?>> classes = ClassScanner.loadClasses();
+
         ClassScanner.printClasses(classes);
+
         urlMappings = ClassScanner.createUrlMappings(classes);
     }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
+
         processRequest(request, response);
     }
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
+
         processRequest(request, response);
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
+
         response.setContentType("text/html; charset=UTF-8");
+
         PrintWriter out = response.getWriter();
 
         String url = request.getRequestURI();
         String contextPath = request.getContextPath();
+
         url = url.replace(contextPath, "");
+
         String httpMethod = request.getMethod();
 
         try {
+
             URLMethod key = new URLMethod(url, httpMethod);
+
             Method method = urlMappings.get(key);
 
             if (method != null) {
+
+                // ==========================================
+                // SPRINT 10 BIS : GESTION DES ROLES
+                // ==========================================
+
+                Role roleAnnotation = method.getAnnotation(Role.class);
+
+                if (roleAnnotation != null) {
+
+                    HttpSession httpSession = request.getSession(false);
+
+                    String userRole = null;
+
+                    if (httpSession != null) {
+
+                        Object roleObject = httpSession.getAttribute("role");
+
+                        if (roleObject instanceof String) {
+                            userRole = (String) roleObject;
+                        }
+                    }
+
+                    String requiredRole = roleAnnotation.value();
+
+                    if (userRole == null || !requiredRole.equals(userRole)) {
+
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+
+                        response.setContentType("text/plain; charset=UTF-8");
+
+                        out.println(
+                                "403 Forbidden : Accès refusé. Rôle requis : "
+                                        + requiredRole
+                        );
+
+                        return;
+                    }
+                }
+
+                // ==========================================
+                // INSTANCIATION DU CONTROLEUR
+                // ==========================================
+
                 Class<?> controllerClass = method.getDeclaringClass();
+
                 Object instance = controllerClass.getDeclaredConstructor().newInstance();
 
                 Parameter[] parameters = method.getParameters();
+
                 Object[] args = new Object[parameters.length];
 
+                // ==========================================
+                // RECUPERATION DES PARAMETRES
+                // ==========================================
+
                 for (int i = 0; i < parameters.length; i++) {
+
                     Parameter parameter = parameters[i];
+
                     Class<?> parameterType = parameter.getType();
 
+                    // Paramètre String
                     if (parameterType == String.class) {
+
                         args[i] = request.getParameter(parameter.getName());
 
-                    } else if (parameterType == MapFile.class) {
+                    }
+
+                    // Upload de fichier
+                    else if (parameterType == MapFile.class) {
+
                         Part part = request.getPart("file");
 
-                        if (part == null || part.getSubmittedFileName() == null
+                        if (part == null
+                                || part.getSubmittedFileName() == null
                                 || part.getSubmittedFileName().isEmpty()) {
-                            throw new IllegalArgumentException("Aucun fichier reçu.");
+
+                            throw new IllegalArgumentException(
+                                    "Aucun fichier reçu."
+                            );
                         }
 
                         String fileName = part.getSubmittedFileName();
+
                         String extension = "";
 
                         if (fileName.contains(".")) {
-                            extension = fileName.substring(fileName.lastIndexOf(".") + 1);
+
+                            extension = fileName.substring(
+                                    fileName.lastIndexOf(".") + 1
+                            );
                         }
 
                         byte[] bytesTable;
 
                         try (InputStream input = part.getInputStream()) {
+
                             bytesTable = input.readAllBytes();
                         }
 
-                        MapFile file = new MapFile(fileName, extension, bytesTable);
-                        args[i] = file;
+                        MapFile file = new MapFile(
+                                fileName,
+                                extension,
+                                bytesTable
+                        );
 
-                    } else if (parameterType == MySession.class) {
+                        args[i] = file;
+                    }
+
+                    // Gestion de session
+                    else if (parameterType == MySession.class) {
+
                         HttpSession httpSession = request.getSession();
+
                         Map<String, Object> data = new HashMap<>();
-                        Enumeration<String> names = httpSession.getAttributeNames();
+
+                        Enumeration<String> names =
+                                httpSession.getAttributeNames();
 
                         while (names.hasMoreElements()) {
+
                             String name = names.nextElement();
-                            data.put(name, httpSession.getAttribute(name));
+
+                            data.put(
+                                    name,
+                                    httpSession.getAttribute(name)
+                            );
                         }
 
                         args[i] = new MySession(data);
+                    }
 
-                    } else {
+                    // Type non pris en charge
+                    else {
+
                         throw new IllegalArgumentException(
-                                "Type non pris en charge : " + parameterType.getName());
+                                "Type non pris en charge : "
+                                        + parameterType.getName()
+                        );
                     }
                 }
 
+                // ==========================================
+                // EXECUTION DE LA METHODE
+                // ==========================================
+
                 Object result = method.invoke(instance, args);
 
+                // ==========================================
+                // MISE A JOUR DE LA SESSION
+                // ==========================================
+
                 for (int i = 0; i < parameters.length; i++) {
+
                     if (parameters[i].getType() == MySession.class) {
+
                         MySession session = (MySession) args[i];
+
                         HttpSession httpSession = request.getSession();
 
-                        for (Map.Entry<String, Object> entry : session.getData().entrySet()) {
-                            httpSession.setAttribute(entry.getKey(), entry.getValue());
+                        for (Map.Entry<String, Object> entry :
+                                session.getData().entrySet()) {
+
+                            httpSession.setAttribute(
+                                    entry.getKey(),
+                                    entry.getValue()
+                            );
                         }
                     }
                 }
 
+                // ==========================================
+                // GESTION REST API
+                // ==========================================
+
                 boolean isRestAPI =
-                        method.getDeclaringClass().isAnnotationPresent(RestAPI.class);
+                        method.getDeclaringClass()
+                                .isAnnotationPresent(RestAPI.class);
 
                 if (isRestAPI) {
-                    response.setContentType("application/json; charset=UTF-8");
+
+                    response.setContentType(
+                            "application/json; charset=UTF-8"
+                    );
+
                     out.println("{"
                             + "\"url\":\"" + url + "\","
                             + "\"httpMethod\":\"" + httpMethod + "\","
                             + "\"method\":\"" + method.getName() + "\""
                             + "}");
+
                     return;
                 }
 
+                // ==========================================
+                // GESTION MODEL AND VIEW
+                // ==========================================
+
                 if (result instanceof ModelAndView) {
+
                     ModelAndView mv = (ModelAndView) result;
 
-                    for (Map.Entry<String, Object> entry : mv.getData().entrySet()) {
-                        request.setAttribute(entry.getKey(), entry.getValue());
+                    for (Map.Entry<String, Object> entry :
+                            mv.getData().entrySet()) {
+
+                        request.setAttribute(
+                                entry.getKey(),
+                                entry.getValue()
+                        );
                     }
 
                     RequestDispatcher dispatcher =
                             request.getRequestDispatcher(mv.getView());
 
                     dispatcher.forward(request, response);
+
                     return;
                 }
 
+                // ==========================================
+                // RETOUR STRING
+                // ==========================================
+
                 if (result instanceof String) {
+
                     out.println(result);
                 }
 
             } else {
+
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                out.println("404 Not Found : " + url + " (" + httpMethod + ")");
+
+                out.println(
+                        "404 Not Found : "
+                                + url
+                                + " ("
+                                + httpMethod
+                                + ")"
+                );
             }
 
         } catch (Exception e) {
+
             throw new ServletException(e);
         }
     }
